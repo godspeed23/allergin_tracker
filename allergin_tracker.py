@@ -44,6 +44,8 @@ def get_pollen_grade(text, locality="BARCELONA", allergin="Plàtan"):
     """reads the text from the pdf to grab the level of the allergin for a locality"""
     locale_not_reached = True
     search_ended = False
+    allergin_level = 0
+    allergin_change = '='
     for line in text.split("\n"):
         if line.lower().endswith(locality.lower()):
             locale_not_reached = False
@@ -63,31 +65,39 @@ def create_file_list(current_year_start, current_year_end, past_years=None):
     """return a list of files to be looked up for the allery data,
     based on the specified date ranges
     """
+    today = date.today()
     current_year = current_year_start.year
     if past_years is None:
         years = [current_year]
     else:
-        print(past_years + [current_year])
         years = sorted(set(past_years + [current_year]))
     week_numbers = []
     for n in range((current_year_end - current_year_start).days + 1):
         week_numbers.append((current_year_start + timedelta(days=n)).isocalendar().week)
     week_numbers = sorted(set(week_numbers))
-    file_list = [f"XAC-{wk:02}-{yr}.pdf" for yr in years for wk in week_numbers]
-    print(file_list)
-    # week_numbers = [date().isocalendar().week]
-
+    file_list = []
+    for yr in years:
+        for wk in week_numbers:
+            if today.year == yr and today.isocalendar().week <= wk:
+                continue
+            file_list.append(f"XAC-{wk:02}-{yr}.pdf")
+    return file_list
 
 if __name__ == "__main__":
 
-    # BASE_URL = "https://aerobiologia.cat/pia/general/pdf/nivells"
+    START_DATE = date(2024, 2, 15)
+    END_DATE = date(2024, 3, 1)
+    BASE_URL = "https://aerobiologia.cat/pia/general/pdf/nivells"
+    PAST_YEARS = [2023]
     # FILE = "XAC-11-2023.pdf" # XAC-09-2023.pdf
-    # URL = "/".join([BASE_URL, FILE])
 
-    # text = get_pdf_text(URL)[0]
-    # allergy_status = get_pollen_grade(text, locality="Barcelona", allergin="Plàtan")
-    # print(allergy_status)
+    file_list = create_file_list( START_DATE, END_DATE, PAST_YEARS)
 
-    create_file_list(
-        date(2024, 2, 15), date(2024, 4, 30), [2019, 2020, 2021, 2022, 2023]
-    )
+    for file in file_list:
+        print(f"pulling status for file: {file}")
+        url = "/".join([BASE_URL, file])
+        text = get_pdf_text(url)[0]
+        print(url)
+        allergy_status = get_pollen_grade(text, locality="Barcelona", allergin="Plàtan")
+        print(allergy_status)
+
